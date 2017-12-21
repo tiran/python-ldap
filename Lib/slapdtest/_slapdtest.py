@@ -580,7 +580,7 @@ class SlapdTestCase(unittest.TestCase):
         """Add test tree to slapd instance
 
         Tests must not add, modify or delete any entries outside of
-        writesuffix!
+        write suffix!
         """
         dc = cls.server.suffix.split(',')[0][3:]
         kw = {
@@ -602,7 +602,7 @@ class SlapdTestCase(unittest.TestCase):
 
     @property
     def writesuffix(self):
-        """Create a writeable area and return suffix
+        """Create a writable area and return suffix
         """
         if not self._writesuffix:
             kw = {

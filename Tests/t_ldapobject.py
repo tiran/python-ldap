@@ -246,6 +246,77 @@ class Test00_SimpleLDAPObject(SlapdTestCase):
         else:
             self.fail("expected SERVER_DOWN, got %r" % r)
 
+    def test_modify_add(self):
+        def t(s):
+            return s
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', ldap.LDAPBytesWarning)
+            self._test_modify_add(self._ldap_conn, t)
+
+    @unittest.skipUnless(PY2, "no bytes_mode under Py3")
+    def test_modify_add_bytesmode(self):
+        def t(s):
+            return s.encode('utf-8')
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', ldap.LDAPBytesWarning)
+            l = self._get_bytes_ldapobject()
+            self._test_modify_add(l, t)
+
+    def _test_modify_add(self, l, t):
+        self.assertEqual(l.whoami_s(), 'dn:' + self.server.root_dn)
+        dn = t(u"cn=New," + self.writesuffix)
+        l.add_ext_s(
+            dn,
+            [
+                (t(u'objectClass'), b'organizationalRole'),
+                (t(u'cn'), b'New'),
+                (t(u'description'), b'testing'),
+                (t(u'street'), b'2n street'),
+            ]
+        )
+        res = l.search_ext_s(
+            t(self.writesuffix),
+            ldap.SCOPE_ONELEVEL,
+            t(u'(objectClass=*)'),  # XXX default is unicode!
+        )
+        self.assertEqual(len(res), 1)
+        self.assertEqual(
+            res,
+            [(
+                dn,
+                {
+                    t(u'cn'): [b'New'],
+                    t(u'description'): [b'testing'],
+                    t(u'street'): [b'2n street'],
+                    t(u'objectClass'): [b'organizationalRole']
+                }
+            )]
+        )
+        l.modify_s(
+            dn,
+            [
+                (ldap.MOD_ADD, t(u'description'), [b'description 2']),
+                (ldap.MOD_DELETE, t(u'street'), None),
+            ]
+        )
+        res = l.search_ext_s(
+            t(self.writesuffix),
+            ldap.SCOPE_ONELEVEL,
+            t(u'(objectClass=*)'),  # XXX default is unicode!
+        )
+        self.assertEqual(
+            res,
+            [(
+                dn,
+                {
+                    t(u'cn'): [b'New'],
+                    t(u'description'): [b'testing',
+                                        b'description 2'],
+                    t(u'objectClass'): [b'organizationalRole']
+                }
+            )]
+        )
+
     def test005_invalid_credentials(self):
         l = self.ldap_object_class(self.server.ldap_uri)
         # search with invalid filter
