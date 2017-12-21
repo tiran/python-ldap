@@ -30,61 +30,7 @@ class TestLdapCExtension(SlapdTestCase):
     @classmethod
     def setUpClass(cls):
         super(TestLdapCExtension, cls).setUpClass()
-        # add two initial objects after server was started and is still empty
-        suffix_dc = cls.server.suffix.split(',')[0][3:]
-        cls.server._log.debug(
-            "adding %s and %s",
-            cls.server.suffix,
-            cls.server.root_dn,
-        )
-        cls.server.ldapadd(
-            "\n".join([
-                'dn: '+cls.server.suffix,
-                'objectClass: dcObject',
-                'objectClass: organization',
-                'dc: '+suffix_dc,
-                'o: '+suffix_dc,
-                '',
-                'dn: '+cls.server.root_dn,
-                'objectClass: applicationProcess',
-                'cn: '+cls.server.root_cn,
-                ''
-            ])
-        )
-
-    def setUp(self):
-        super(TestLdapCExtension, self).setUp()
-        self._writesuffix = None
-
-    def tearDown(self):
-        # cleanup test subtree
-        if self._writesuffix is not None:
-            self.server.ldapdelete(self._writesuffix, recursive=True)
-        super(TestLdapCExtension, self).tearDown()
-
-    @property
-    def writesuffix(self):
-        """Initialize writesuffix on demand
-
-        Creates a clean subtree for tests that write to slapd. ldapdelete
-        is not able to delete a Root DSE, therefore we need a temporary
-        work space.
-
-        :return: DN
-        """
-        if self._writesuffix is not None:
-            return self._writesuffix
-        self._writesuffix = 'ou=write tests,%s' % self.server.suffix
-        # Add writeable subtree
-        self.server.ldapadd(
-            "\n".join([
-                'dn: ' + self._writesuffix,
-                'objectClass: organizationalUnit',
-                'ou:' + self._writesuffix.split(',')[0][3:],
-                ''
-            ])
-        )
-        return self._writesuffix
+        cls.add_testdata()
 
     def _open_conn(self, bind=True):
         """

@@ -490,6 +490,52 @@ class SlapdObject(object):
         self._cli_popen(self.PATH_LDAPDELETE, extra_args=extra_args)
 
 
+LDIF_TEMPLATE = """
+dn: %(suffix)s
+objectClass: dcObject
+objectClass: organization
+dc: %(dc)s
+o: %(dc)s
+
+dn: %(rootdn)s
+objectClass: applicationProcess
+objectClass: simpleSecurityObject
+cn: %(rootcn)s
+userPassword: %(rootpw)s
+
+dn: cn=user1,%(suffix)s
+objectClass: applicationProcess
+objectClass: simpleSecurityObject
+cn: user1
+userPassword: user1_pw
+
+dn: cn=Foo1,%(suffix)s
+objectClass: organizationalRole
+cn: Foo1
+
+dn: cn=Foo2,%(suffix)s
+objectClass: organizationalRole
+cn: Foo2
+
+dn: cn=Foo3,%(suffix)s
+objectClass: organizationalRole
+cn: Foo3
+
+dn: ou=Container,%(suffix)s
+objectClass: organizationalUnit
+ou: Container
+
+dn: cn=Foo4,ou=Container,%(suffix)s
+objectClass: organizationalRole
+cn: Foo4
+"""
+
+WRITE_LDIF_TEMPLATE = """
+dn: ou=%(writeou)s,%(suffix)s
+objectClass: organizationalUnit
+ou: %(writeou)s
+"""
+
 class SlapdTestCase(unittest.TestCase):
     """
     test class which also clones or initializes a running slapd
@@ -498,23 +544,71 @@ class SlapdTestCase(unittest.TestCase):
     server_class = SlapdObject
     server = None
     ldap_object_class = None
+    _writesuffix = None
 
-    def _open_ldap_conn(self, who=None, cred=None, **kwargs):
+    def _open_ldap_conn(self, who=None, cred=None, bind=True,
+                        starttls=False, **kwargs):
         """
         return a LDAPObject instance after simple bind
         """
-        ldap_conn = self.ldap_object_class(self.server.ldap_uri, **kwargs)
-        ldap_conn.protocol_version = 3
-        #ldap_conn.set_option(ldap.OPT_REFERRALS, 0)
-        ldap_conn.simple_bind_s(who or self.server.root_dn, cred or self.server.root_pw)
-        return ldap_conn
+        conn = self.ldap_object_class(self.server.ldap_uri, **kwargs)
+        conn.protocol_version = ldap.VERSION3
+        if starttls:
+            conn.set_option(ldap.OPT_X_TLS_CACERTFILE, self.server.cafile)
+            conn.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+            conn.start_tls_s()
+        if bind:
+            if who is None:
+                who = self.server.root_dn
+            if cred is None:
+                cred = self.server.root_pw
+            conn.simple_bind_s(who, cred)
+        return conn
 
     @classmethod
     def setUpClass(cls):
+        cls._writesuffix = None
         cls.server = cls.server_class()
         cls.server.start()
-        cls.server = cls.server
 
     @classmethod
     def tearDownClass(cls):
         cls.server.stop()
+
+    @classmethod
+    def add_testdata(cls):
+        """Add test tree to slapd instance
+
+        Tests must not add, modify or delete any entries outside of
+        writesuffix!
+        """
+        dc = cls.server.suffix.split(',')[0][3:]
+        kw = {
+            'suffix': cls.server.suffix,
+            'rootdn': cls.server.root_dn,
+            'rootcn': cls.server.root_cn,
+            'rootpw': cls.server.root_pw,
+            'dc': dc,
+        }
+        cls.server.ldapadd(LDIF_TEMPLATE % kw)
+
+    def setUp(self):
+        super(SlapdTestCase, self).setUp()
+
+    def tearDown(self):
+        if self._writesuffix is not None:
+            self.server.ldapdelete(self._writesuffix, recursive=True)
+        super(SlapdTestCase, self).tearDown()
+
+    @property
+    def writesuffix(self):
+        """Create a writeable area and return suffix
+        """
+        if not self._writesuffix:
+            kw = {
+                'suffix': self.server.suffix,
+                'writeou': 'write tests',
+            }
+            self.server.ldapadd(WRITE_LDIF_TEMPLATE % kw)
+            self._writesuffix = 'ou=%(writeou)s,%(suffix)s' % kw
+        return self._writesuffix

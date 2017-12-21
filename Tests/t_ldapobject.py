@@ -20,7 +20,6 @@ import contextlib
 import linecache
 import os
 import unittest
-import warnings
 import pickle
 import warnings
 from slapdtest import SlapdTestCase, requires_sasl, requires_tls
@@ -30,46 +29,6 @@ os.environ['LDAPNOINIT'] = '1'
 
 import ldap
 from ldap.ldapobject import SimpleLDAPObject, ReconnectLDAPObject
-
-LDIF_TEMPLATE = """dn: %(suffix)s
-objectClass: dcObject
-objectClass: organization
-dc: %(dc)s
-o: %(dc)s
-
-dn: %(rootdn)s
-objectClass: applicationProcess
-objectClass: simpleSecurityObject
-cn: %(rootcn)s
-userPassword: %(rootpw)s
-
-dn: cn=user1,%(suffix)s
-objectClass: applicationProcess
-objectClass: simpleSecurityObject
-cn: user1
-userPassword: user1_pw
-
-dn: cn=Foo1,%(suffix)s
-objectClass: organizationalRole
-cn: Foo1
-
-dn: cn=Foo2,%(suffix)s
-objectClass: organizationalRole
-cn: Foo2
-
-dn: cn=Foo3,%(suffix)s
-objectClass: organizationalRole
-cn: Foo3
-
-dn: ou=Container,%(suffix)s
-objectClass: organizationalUnit
-ou: Container
-
-dn: cn=Foo4,ou=Container,%(suffix)s
-objectClass: organizationalRole
-cn: Foo4
-
-"""
 
 
 class Test00_SimpleLDAPObject(SlapdTestCase):
@@ -82,23 +41,19 @@ class Test00_SimpleLDAPObject(SlapdTestCase):
     @classmethod
     def setUpClass(cls):
         super(Test00_SimpleLDAPObject, cls).setUpClass()
-        # insert some Foo* objects via ldapadd
-        cls.server.ldapadd(
-            LDIF_TEMPLATE % {
-                'suffix':cls.server.suffix,
-                'rootdn':cls.server.root_dn,
-                'rootcn':cls.server.root_cn,
-                'rootpw':cls.server.root_pw,
-                'dc': cls.server.suffix.split(',')[0][3:],
-            }
-        )
+        cls.add_testdata()
 
     def setUp(self):
+        super(Test00_SimpleLDAPObject, self).setUp()
         try:
             self._ldap_conn
         except AttributeError:
             # open local LDAP connection
             self._ldap_conn = self._open_ldap_conn(bytes_mode=False)
+
+    def tearDown(self):
+        self._ldap_conn.unbind_s()
+        super(Test00_SimpleLDAPObject, self).tearDown()
 
     def test_reject_bytes_base(self):
         base = self.server.suffix
