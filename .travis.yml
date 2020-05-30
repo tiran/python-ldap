@@ -10,6 +10,15 @@ addons:
       - ldap-utils
       - slapd
       - enchant
+  coverity_scan:
+    project:
+      name: "tiran/python-ldap"
+      description: "python-ldap"
+    notification_email: christian@python.org
+    # build_command_prepend: "<Your build preprocessing command here>"
+    build_command: python3 setup.py build
+    branch_pattern: coverity_scan
+
 
 # Note: when updating Python versions, also change setup.py and tox.ini
 matrix:
@@ -81,6 +90,10 @@ env:
         - CFLAGS_std="-std=c90"
         # pass CFLAGS, CI (for Travis CI) and WITH_GCOV to tox tasks
         - TOX_TESTENV_PASSENV="CFLAGS CI WITH_GCOV"
+        # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+        # via the "travis encrypt" command using the project repo's public key
+        - secure: "EYkuvVfoa0/kybpC2AsQtM6oS7WgYUV1Lfkcu60M/gg67YuCrdq0spefJFKqbuNvEWCOTYCpCMzCx7FpS7Kefsqjyl3E/kExBav5/iT2eQ+JJ+ZxoIPpmCQlywWAVlcrh92s7nK15S7Hy565O8g3bw3Qh5N+KhhR2A2D7lfIxxau7RLQ4qixDkeDhsUmMjvJHyQZDNSFfSnryX9uA8k7JbDpnGVcNFsWVQntTwF8weyB5UHDfGDW4llghn7eLMS0pKkk4Q1wopsrkatrNpz+lTopL7f9jY8nC3fnI2JXN/D7FTDIcQ/m8yPtLgysJSKCTw2uzUUJMwUnUtWo36jTM4G+oW1wAkl3X9YDIgeVJw9XkP1gMfbi7SQRcJTjGuV/ri0fv4BtPkE3DTtx7ZdDxsV3o2gblaA/WYv7ypCNFd+P81+hxXdI0oxa3cE2hqZM9fvuK3QR1ga+OwpViyMEqnVlQtSzLL796tdmliMjg6Czf0D28Z1RTVdr2YTf3ozSzN9eVQYg/1Y2kEMonhz0TAOgHjSHjyWnzYIZ8stUK530FPNBTb61N9MD1jFQu4sOj7XfBvOwAyWHh9u8fU0Qqf0CrZFE+L8xoabq+MA6ySF77pYs5d/zs9gDElqcyTSY3YQLVKuuX2IHJohsFR6m0onrtgViKhHvAEjz0oAPtf4="
+
 
 install:
   - pip install "pip>=7.1.0"
